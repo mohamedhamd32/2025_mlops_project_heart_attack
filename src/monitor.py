@@ -1,16 +1,12 @@
 import pandas as pd
 
-#from prefect_email import EmailServerCredentials
-#from prefect_email import email_send_message
-#from prefect import flow, task
+from prefect_email import EmailServerCredentials
+from prefect_email import email_send_message
+from prefect import flow, task
 
+from evidently import ColumnMapping
 from evidently.report import Report
-from evidently.metrics.data_drift.dataset_drift_metric import DatasetDriftMetric
-
-from evidently.model.widget.column_mapping import ColumnMapping
-
-from evidently.api.workspace.workspace import Workspace
-from evidently.api.report.report import ReportApi
+from evidently.metrics import DatasetDriftMetric
 
 @task
 def evidently_report():
@@ -24,20 +20,8 @@ def evidently_report():
         numerical_features=num_features,
         categorical_features=cat_features
     )
-    report = Report(metrics=[DataDriftPreset()])
+    report = Report(metrics=[DatasetDriftMetric()])
     report.run(reference_data=reference_data, current_data=current_data, column_mapping=column_mapping)
-    # Connect to local Evidently service
-    workspace = Workspace(
-        base_url="http://192.168.1.95:9000",  # your Evidently instance
-    )
-
-    # Create or reuse project
-    project = workspace.create_project_if_not_exists("heart-monitoring")
-
-    # Upload report to project
-    ReportApi(workspace).upload(project.id, report, tags=["daily-check"])
-
-    # Return drift share
     result = report.as_dict()
     share_of_drifted_columns = result['metrics'][0]['result']['share_of_drifted_columns']
     return share_of_drifted_columns
@@ -67,5 +51,4 @@ def main_flow(recipient: str):
                           recipient, "noreply@mlops.com")
 
 if __name__ == "__main__":
-    #main_flow()  # Execute the main flow when running the script
-    evidently_report()
+    main_flow()  # Execute the main flow when running the script
